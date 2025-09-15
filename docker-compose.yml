@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ROLE: api
+      DATABASE_URL: ${DATABASE_URL}     # <-- uses db host
+      JWT_SECRET: ${JWT_SECRET}
+      SUMMARY_ENGINE: ${SUMMARY_ENGINE}
+      WORKER_POLL_MS: ${WORKER_POLL_MS}
+    ports: ["8000:8000"]
+
+  worker:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ROLE: worker
+      DATABASE_URL: ${DATABASE_URL}     # <-- uses db host
+      SUMMARY_ENGINE: ${SUMMARY_ENGINE}
+      WORKER_POLL_MS: ${WORKER_POLL_MS}
+
+volumes:
+  pgdata:
